@@ -23,6 +23,7 @@ func (s *Service) Chat(ctx context.Context, in dto.ChatRequest) (*dto.ChatRespon
 	if capName != "chat" && capName != "vision" {
 		return nil, ErrBadRequest
 	}
+	ctx, traffic := openai.WithTraffic(ctx)
 	started := time.Now()
 	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, in.ModelID, capName)
 	if err != nil {
@@ -37,7 +38,7 @@ func (s *Service) Chat(ctx context.Context, in dto.ChatRequest) (*dto.ChatRespon
 		req.Messages = append(req.Messages, openai.ChatMessage{Role: role, Content: m.Content})
 	}
 	result, callErr := s.llm.Chat(ctx, conn.BaseURL, apiKey, nil, req)
-	s.record(in.TenantID, conn, endpoint, in.CallerApp, capName, started, resultUsage(result), callErr)
+	s.record(in.TenantID, conn, endpoint, in.CallerApp, capName, started, resultUsage(result), traffic, callErr)
 	if callErr != nil {
 		return nil, callErr
 	}
@@ -60,6 +61,7 @@ func (s *Service) Image(ctx context.Context, in dto.ImageRequest) (*dto.ImageRes
 		}
 		modelRowID = named.ID
 	}
+	ctx, traffic := openai.WithTraffic(ctx)
 	started := time.Now()
 	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, modelRowID, "image")
 	if err != nil {
@@ -87,7 +89,7 @@ func (s *Service) Image(ctx context.Context, in dto.ImageRequest) (*dto.ImageRes
 			result, callErr = s.llm.GenerateImage(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, in.Size)
 		}
 	}
-	s.record(in.TenantID, conn, endpoint, in.CallerApp, "image", started, openai.Usage{}, callErr)
+	s.record(in.TenantID, conn, endpoint, in.CallerApp, "image", started, openai.Usage{}, traffic, callErr)
 	if callErr != nil {
 		return nil, callErr
 	}
@@ -122,7 +124,7 @@ func (s *Service) resolve(tenantID, connectionID, modelRowID uint64, capability 
 	return conn, endpoint, apiKey, nil
 }
 
-func (s *Service) record(tenantID uint64, conn *model.Connection, endpoint *model.ModelEndpoint, caller, capability string, started time.Time, usage openai.Usage, callErr error) {
+func (s *Service) record(tenantID uint64, conn *model.Connection, endpoint *model.ModelEndpoint, caller, capability string, started time.Time, usage openai.Usage, traffic *openai.Traffic, callErr error) {
 	status := "ok"
 	msg := ""
 	if callErr != nil {
@@ -135,11 +137,18 @@ func (s *Service) record(tenantID uint64, conn *model.Connection, endpoint *mode
 	if caller == "" {
 		caller = "unknown"
 	}
+	var requestBytes, responseBytes int64
+	if traffic != nil {
+		requestBytes = traffic.RequestBytes
+		responseBytes = traffic.ResponseBytes
+	}
 	_ = s.repo.AddUsage(&model.UsageRecord{
 		TenantID: tenantID, ConnectionID: conn.ID, ModelRowID: endpoint.ID, ModelName: endpoint.ModelID,
 		CallerApp: caller, Capability: capability,
 		PromptTokens: usage.PromptTokens, CompletionTokens: usage.CompletionTokens, TotalTokens: usage.TotalTokens,
-		Status: status, ErrorMessage: msg, LatencyMS: int(time.Since(started).Milliseconds()),
+		Status: status, ErrorMessage: msg,
+		RequestBytes: requestBytes, ResponseBytes: responseBytes,
+		LatencyMS: int(time.Since(started).Milliseconds()),
 	})
 }
 

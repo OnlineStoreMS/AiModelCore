@@ -1,6 +1,12 @@
 package openai
 
-import "testing"
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 func TestEndpoint(t *testing.T) {
 	cases := map[string]string{
@@ -19,5 +25,21 @@ func TestEndpoint(t *testing.T) {
 		if got != want[in] {
 			t.Fatalf("%s => %s, want %s", in, got, want[in])
 		}
+	}
+}
+
+func TestCallTraffic(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+	ctx, traffic := WithTraffic(context.Background())
+	_, raw, err := New().Call(ctx, http.MethodPost, srv.URL, "k", map[string]string{"a": "b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if traffic.RequestBytes != int64(len(`{"a":"b"}`)) || traffic.ResponseBytes != int64(len(raw)) {
+		t.Fatalf("traffic %+v raw %d", traffic, len(raw))
 	}
 }

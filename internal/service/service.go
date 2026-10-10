@@ -210,6 +210,10 @@ func (s *Service) Dashboard(tenantID uint64) (*dto.Dashboard, error) {
 	if err != nil {
 		return nil, err
 	}
+	var avg int64
+	if usage.Calls > 0 {
+		avg = usage.LatencySumMS / usage.Calls
+	}
 	return &dto.Dashboard{
 		Connections:        total,
 		EnabledConnections: enabled,
@@ -217,6 +221,10 @@ func (s *Service) Dashboard(tenantID uint64) (*dto.Dashboard, error) {
 		TodayCalls:         usage.Calls,
 		TodayTokens:        usage.Tokens,
 		TodayErrors:        usage.Errors,
+		TodayRequestBytes:  usage.RequestBytes,
+		TodayResponseBytes: usage.ResponseBytes,
+		TodayAvgLatencyMS:  avg,
+		TodayMaxLatencyMS:  usage.LatencyMaxMS,
 		BalanceReady:       false,
 		BalanceNote:        "厂商余额与账单接口已预留，当前只统计本平台发起的调用量。",
 	}, nil

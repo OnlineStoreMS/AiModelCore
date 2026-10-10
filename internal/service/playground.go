@@ -46,6 +46,7 @@ func (s *Service) Playground(ctx context.Context, tenantID, modelRowID uint64, i
 		return nil, errors.New("该模型没有此能力")
 	}
 
+	ctx, traffic := openai.WithTraffic(ctx)
 	started := time.Now()
 	var result *dto.PlaygroundResult
 	var callErr error
@@ -69,7 +70,7 @@ func (s *Service) Playground(ctx context.Context, tenantID, modelRowID uint64, i
 		if recErr == nil && !result.OK && result.Error != "" {
 			recErr = errors.New(result.Error)
 		}
-		s.record(tenantID, conn, endpoint, "playground", capName, started, resultUsageFromRaw(result.Raw), recErr)
+		s.record(tenantID, conn, endpoint, "playground", capName, started, resultUsageFromRaw(result.Raw), traffic, recErr)
 	}
 	if callErr != nil {
 		result.OK = false

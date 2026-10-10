@@ -59,6 +59,10 @@ type Dashboard struct {
 	TodayCalls         int64  `json:"todayCalls"`
 	TodayTokens        int64  `json:"todayTokens"`
 	TodayErrors        int64  `json:"todayErrors"`
+	TodayRequestBytes  int64  `json:"todayRequestBytes"`
+	TodayResponseBytes int64  `json:"todayResponseBytes"`
+	TodayAvgLatencyMS  int64  `json:"todayAvgLatencyMs"`
+	TodayMaxLatencyMS  int64  `json:"todayMaxLatencyMs"`
 	BalanceReady       bool   `json:"balanceReady"`
 	BalanceNote        string `json:"balanceNote"`
 }

@@ -157,9 +157,13 @@ func (r *Repo) ListUsage(tenantID uint64, limit int) ([]model.UsageRecord, error
 }
 
 type TodayUsage struct {
-	Calls  int64
-	Tokens int64
-	Errors int64
+	Calls         int64
+	Tokens        int64
+	Errors        int64
+	RequestBytes  int64
+	ResponseBytes int64
+	LatencySumMS  int64
+	LatencyMaxMS  int64
 }
 
 func (r *Repo) TodayUsage(tenantID uint64, start time.Time) (TodayUsage, error) {
@@ -183,5 +187,21 @@ func (r *Repo) TodayUsage(tenantID uint64, start time.Time) (TodayUsage, error) 
 	if tokens != nil {
 		out.Tokens = *tokens
 	}
+	var traffic struct {
+		RequestBytes  int64
+		ResponseBytes int64
+		LatencySum    int64
+		LatencyMax    int64
+	}
+	if err := r.db.Model(&model.UsageRecord{}).
+		Where("tenant_id = ? AND created_at >= ?", tenantID, start).
+		Select("COALESCE(SUM(request_bytes),0) as request_bytes, COALESCE(SUM(response_bytes),0) as response_bytes, COALESCE(SUM(latency_ms),0) as latency_sum, COALESCE(MAX(latency_ms),0) as latency_max").
+		Scan(&traffic).Error; err != nil {
+		return out, err
+	}
+	out.RequestBytes = traffic.RequestBytes
+	out.ResponseBytes = traffic.ResponseBytes
+	out.LatencySumMS = traffic.LatencySum
+	out.LatencyMaxMS = traffic.LatencyMax
 	return out, nil
 }

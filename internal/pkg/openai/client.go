@@ -21,6 +21,28 @@ func New() *Client {
 	return &Client{HTTP: &http.Client{Timeout: 170 * time.Second}}
 }
 
+type trafficKey struct{}
+
+// Traffic 累计一次业务调用里发给厂商的请求体和读到的响应体字节数。
+type Traffic struct {
+	RequestBytes  int64
+	ResponseBytes int64
+}
+
+func WithTraffic(ctx context.Context) (context.Context, *Traffic) {
+	t := &Traffic{}
+	return context.WithValue(ctx, trafficKey{}, t), t
+}
+
+func noteTraffic(ctx context.Context, sent, received int64) {
+	t, _ := ctx.Value(trafficKey{}).(*Traffic)
+	if t == nil {
+		return
+	}
+	t.RequestBytes += sent
+	t.ResponseBytes += received
+}
+
 type ChatMessage struct {
 	Role    string          `json:"role"`
 	Content json.RawMessage `json:"content"`
@@ -172,12 +194,15 @@ func (c *Client) EditImage(ctx context.Context, base, apiKey string, headers map
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	applyAuth(req, apiKey, headers)
+	sent := int64(buf.Len())
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
+		noteTraffic(ctx, sent, 0)
 		return nil, err
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	noteTraffic(ctx, sent, int64(len(raw)))
 	if resp.StatusCode >= 300 {
 		return nil, errStatus(resp.StatusCode, raw, "图片编辑失败")
 	}
@@ -213,11 +238,13 @@ func parseImage(raw []byte) (*ImageResult, error) {
 
 func (c *Client) Call(ctx context.Context, method, url, apiKey string, payload any) (int, []byte, error) {
 	var body io.Reader
+	var sent int64
 	if payload != nil {
 		buf, err := json.Marshal(payload)
 		if err != nil {
 			return 0, nil, err
 		}
+		sent = int64(len(buf))
 		body = bytes.NewReader(buf)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
@@ -230,10 +257,12 @@ func (c *Client) Call(ctx context.Context, method, url, apiKey string, payload a
 	applyAuth(req, apiKey, nil)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
+		noteTraffic(ctx, sent, 0)
 		return 0, nil, err
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	noteTraffic(ctx, sent, int64(len(raw)))
 	if err != nil {
 		return resp.StatusCode, raw, err
 	}
@@ -258,6 +287,7 @@ func (c *Client) PostFile(ctx context.Context, url, apiKey, field, filename stri
 	if err := w.Close(); err != nil {
 		return 0, nil, err
 	}
+	sent := int64(buf.Len())
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)
 	if err != nil {
 		return 0, nil, err
@@ -266,10 +296,12 @@ func (c *Client) PostFile(ctx context.Context, url, apiKey, field, filename stri
 	applyAuth(req, apiKey, nil)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
+		noteTraffic(ctx, sent, 0)
 		return 0, nil, err
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	noteTraffic(ctx, sent, int64(len(raw)))
 	if err != nil {
 		return resp.StatusCode, raw, err
 	}
@@ -278,11 +310,13 @@ func (c *Client) PostFile(ctx context.Context, url, apiKey, field, filename stri
 
 func (c *Client) do(ctx context.Context, method, url, apiKey string, headers map[string]string, payload any, out any) (int, []byte, error) {
 	var body io.Reader
+	var sent int64
 	if payload != nil {
 		buf, err := json.Marshal(payload)
 		if err != nil {
 			return 0, nil, err
 		}
+		sent = int64(len(buf))
 		body = bytes.NewReader(buf)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
@@ -295,10 +329,12 @@ func (c *Client) do(ctx context.Context, method, url, apiKey string, headers map
 	applyAuth(req, apiKey, headers)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
+		noteTraffic(ctx, sent, 0)
 		return 0, nil, err
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	noteTraffic(ctx, sent, int64(len(raw)))
 	if out != nil && resp.StatusCode < 300 && len(raw) > 0 {
 		_ = json.Unmarshal(raw, out)
 	}

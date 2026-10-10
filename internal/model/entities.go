@@ -47,6 +47,8 @@ type UsageRecord struct {
 	TotalTokens      int       `json:"totalTokens"`
 	Status           string    `gorm:"size:16;index" json:"status"`
 	ErrorMessage     string    `gorm:"size:512" json:"errorMessage"`
+	RequestBytes     int64     `json:"requestBytes"`
+	ResponseBytes    int64     `json:"responseBytes"`
 	LatencyMS        int       `json:"latencyMs"`
 	CreatedAt        time.Time `gorm:"index" json:"createdAt"`
 }

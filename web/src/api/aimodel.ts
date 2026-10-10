@@ -68,6 +68,10 @@ export interface DashboardSummary {
   todayCalls: number
   todayTokens: number
   todayErrors: number
+  todayRequestBytes: number
+  todayResponseBytes: number
+  todayAvgLatencyMs: number
+  todayMaxLatencyMs: number
   balanceReady: boolean
   balanceNote: string
 }
@@ -82,6 +86,8 @@ export interface UsageItem {
   totalTokens: number
   status: string
   errorMessage: string
+  requestBytes: number
+  responseBytes: number
   latencyMs: number
   createdAt: string
 }
