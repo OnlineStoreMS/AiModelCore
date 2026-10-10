@@ -12,12 +12,15 @@ import {
   type ConnectionItem,
   type ModelItem,
 } from '../api/aimodel'
+import PlaygroundDialog from './PlaygroundDialog.vue'
 
 const loading = ref(false)
 const rows = ref<ModelItem[]>([])
 const connections = ref<ConnectionItem[]>([])
 const filterConnection = ref<number | undefined>()
 const dialog = ref(false)
+const playOpen = ref(false)
+const playModel = ref<ModelItem | null>(null)
 const saving = ref(false)
 const editingId = ref(0)
 const form = reactive({
@@ -54,6 +57,11 @@ function openCreate() {
   form.enabled = 1
   form.remark = ''
   dialog.value = true
+}
+
+function openPlay(row: ModelItem) {
+  playModel.value = row
+  playOpen.value = true
 }
 
 function openEdit(row: ModelItem) {
@@ -128,8 +136,9 @@ onMounted(load)
           <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
+          <el-button link type="primary" @click="openPlay(row)">体验</el-button>
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="danger" @click="remove(row)">删除</el-button>
         </template>
@@ -170,6 +179,7 @@ onMounted(load)
       <el-button type="primary" :loading="saving" @click="save">保存</el-button>
     </template>
   </el-dialog>
+  <PlaygroundDialog v-model="playOpen" :model="playModel" />
 </template>
 
 <style scoped>

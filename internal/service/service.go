@@ -332,7 +332,7 @@ func viewModel(row model.ModelEndpoint, conn model.Connection) dto.ModelView {
 }
 
 func normalizeCaps(in []string) []string {
-	allow := map[string]struct{}{"chat": {}, "vision": {}, "image": {}, "embedding": {}}
+	allow := map[string]struct{}{"chat": {}, "vision": {}, "image": {}, "embedding": {}, "video": {}, "voice": {}}
 	seen := map[string]struct{}{}
 	out := make([]string, 0, len(in))
 	for _, c := range in {

@@ -1,9 +1,11 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"aimodelcore/internal/dto"
 	"aimodelcore/internal/pkg/authcontext"
@@ -33,6 +35,7 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler) {
 	r.POST("/models", h.CreateModel)
 	r.PUT("/models/:id", h.UpdateModel)
 	r.DELETE("/models/:id", h.DeleteModel)
+	r.POST("/models/:id/playground", h.Playground)
 }
 
 func (h *Handler) Providers(c *gin.Context) {
@@ -184,6 +187,26 @@ func (h *Handler) UpdateModel(c *gin.Context) {
 		return
 	}
 	response.OK(c, view)
+}
+
+func (h *Handler) Playground(c *gin.Context) {
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	var in dto.PlaygroundInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, http.StatusBadRequest, "参数不正确")
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 170*time.Second)
+	defer cancel()
+	out, err := h.svc.Playground(ctx, authcontext.TenantID(c), id, in)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	response.OK(c, out)
 }
 
 func (h *Handler) DeleteModel(c *gin.Context) {

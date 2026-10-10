@@ -18,7 +18,7 @@ type Client struct {
 }
 
 func New() *Client {
-	return &Client{HTTP: &http.Client{Timeout: 120 * time.Second}}
+	return &Client{HTTP: &http.Client{Timeout: 170 * time.Second}}
 }
 
 type ChatMessage struct {
@@ -193,6 +193,71 @@ func parseImage(raw []byte) (*ImageResult, error) {
 		return nil, fmt.Errorf("模型未返回图片")
 	}
 	return &ImageResult{URL: body.Data[0].URL, B64JSON: body.Data[0].B64JSON}, nil
+}
+
+func (c *Client) Call(ctx context.Context, method, url, apiKey string, payload any) (int, []byte, error) {
+	var body io.Reader
+	if payload != nil {
+		buf, err := json.Marshal(payload)
+		if err != nil {
+			return 0, nil, err
+		}
+		body = bytes.NewReader(buf)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		return 0, nil, err
+	}
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	applyAuth(req, apiKey, nil)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return resp.StatusCode, raw, err
+	}
+	return resp.StatusCode, raw, nil
+}
+
+func (c *Client) PostFile(ctx context.Context, url, apiKey, field, filename string, file []byte, fields map[string]string) (int, []byte, error) {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		if err := w.WriteField(k, v); err != nil {
+			return 0, nil, err
+		}
+	}
+	part, err := w.CreateFormFile(field, filename)
+	if err != nil {
+		return 0, nil, err
+	}
+	if _, err := part.Write(file); err != nil {
+		return 0, nil, err
+	}
+	if err := w.Close(); err != nil {
+		return 0, nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	applyAuth(req, apiKey, nil)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return resp.StatusCode, raw, err
+	}
+	return resp.StatusCode, raw, nil
 }
 
 func (c *Client) do(ctx context.Context, method, url, apiKey string, headers map[string]string, payload any, out any) (int, []byte, error) {

@@ -100,6 +100,40 @@ type ImageRequest struct {
 	ImageBase64  string `json:"imageBase64"`
 }
 
+type PlaygroundInput struct {
+	Capability     string `json:"capability"`
+	Prompt         string `json:"prompt"`
+	System         string `json:"system"`
+	ImageURL       string `json:"imageUrl"`
+	ImageBase64    string `json:"imageBase64"`
+	AudioBase64    string `json:"audioBase64"`
+	AudioName      string `json:"audioName"`
+	Language       string `json:"language"`
+	Thinking       *bool  `json:"thinking"`
+	Duration       int    `json:"duration"`
+	AspectRatio    string `json:"aspectRatio"`
+	Resolution     string `json:"resolution"`
+	VideoRequestID string `json:"videoRequestId"`
+}
+
+type PlaygroundResult struct {
+	OK        bool            `json:"ok"`
+	Endpoint  string          `json:"endpoint,omitempty"`
+	Status    int             `json:"status,omitempty"`
+	LatencyMS int             `json:"latencyMs,omitempty"`
+	Pending   bool            `json:"pending"`
+	RequestID string          `json:"requestId,omitempty"`
+	Progress  int             `json:"progress,omitempty"`
+	Phase     string          `json:"phase,omitempty"`
+	Text      string          `json:"text,omitempty"`
+	Reasoning string          `json:"reasoning,omitempty"`
+	ImageURL  string          `json:"imageUrl,omitempty"`
+	ImageData string          `json:"imageData,omitempty"`
+	VideoURL  string          `json:"videoUrl,omitempty"`
+	Raw       json.RawMessage `json:"raw,omitempty"`
+	Error     string          `json:"error,omitempty"`
+}
+
 type ImageResponse struct {
 	URL            string `json:"url,omitempty"`
 	B64JSON        string `json:"b64Json,omitempty"`

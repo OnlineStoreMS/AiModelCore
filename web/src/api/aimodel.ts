@@ -97,6 +97,8 @@ export const capabilityOptions = [
   { value: 'vision', label: '识图' },
   { value: 'image', label: '图片生成/编辑' },
   { value: 'embedding', label: '向量' },
+  { value: 'video', label: '视频' },
+  { value: 'voice', label: '语音' },
 ]
 
 export function capabilityLabel(code: string) {
@@ -117,3 +119,40 @@ export const listModels = (connectionId?: number) =>
 export const createModel = (body: ModelInput) => unwrap<ModelItem>(client.post('/models', body))
 export const updateModel = (id: number, body: ModelInput) => unwrap<ModelItem>(client.put(`/models/${id}`, body))
 export const deleteModel = (id: number) => unwrap(client.delete(`/models/${id}`))
+
+export interface PlaygroundInput {
+  capability: string
+  prompt?: string
+  system?: string
+  imageUrl?: string
+  imageBase64?: string
+  audioBase64?: string
+  audioName?: string
+  language?: string
+  thinking?: boolean
+  duration?: number
+  aspectRatio?: string
+  resolution?: string
+  videoRequestId?: string
+}
+
+export interface PlaygroundResult {
+  ok: boolean
+  endpoint?: string
+  status?: number
+  latencyMs?: number
+  pending: boolean
+  requestId?: string
+  progress?: number
+  phase?: string
+  text?: string
+  reasoning?: string
+  imageUrl?: string
+  imageData?: string
+  videoUrl?: string
+  raw?: unknown
+  error?: string
+}
+
+export const playground = (id: number, body: PlaygroundInput) =>
+  unwrap<PlaygroundResult>(client.post(`/models/${id}/playground`, body, { timeout: 180000 }))
