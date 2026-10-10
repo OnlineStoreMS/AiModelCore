@@ -132,6 +132,22 @@ func (c *Client) GenerateImage(ctx context.Context, base, apiKey string, headers
 	return c.imageJSON(ctx, Endpoint(base, "images/generations"), apiKey, headers, payload)
 }
 
+// EditImageGenerations 用 images/generations 的 image 字段做图生图。百炼 qwen-image 走这条，不走 multipart /images/edits。
+func (c *Client) EditImageGenerations(ctx context.Context, base, apiKey string, headers map[string]string, model, prompt, size, imageRef string) (*ImageResult, error) {
+	payload := map[string]any{
+		"model":              model,
+		"prompt":             prompt,
+		"image":              imageRef,
+		"n":                  1,
+		"watermark":          false,
+		"prompt_extend_mode": "direct",
+	}
+	if size != "" {
+		payload["size"] = size
+	}
+	return c.imageJSON(ctx, Endpoint(base, "images/generations"), apiKey, headers, payload)
+}
+
 func (c *Client) EditImage(ctx context.Context, base, apiKey string, headers map[string]string, model, prompt, size, filename string, image []byte) (*ImageResult, error) {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)

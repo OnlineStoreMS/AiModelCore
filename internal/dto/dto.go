@@ -94,6 +94,7 @@ type ImageRequest struct {
 	CallerApp    string `json:"callerApp"`
 	ConnectionID uint64 `json:"connectionId"`
 	ModelID      uint64 `json:"modelId"`
+	Model        string `json:"model"`
 	Prompt       string `json:"prompt"`
 	Size         string `json:"size"`
 	ImageURL     string `json:"imageUrl"`

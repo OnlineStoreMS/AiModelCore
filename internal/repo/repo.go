@@ -95,6 +95,18 @@ func (r *Repo) ModelExists(tenantID, connectionID uint64, modelID string) (bool,
 	return n > 0, err
 }
 
+func (r *Repo) ResolveModelByName(tenantID, connectionID uint64, modelName, capability string) (*model.ModelEndpoint, error) {
+	q := r.db.Where("tenant_id = ? AND enabled = 1 AND model_id = ? AND capabilities LIKE ?", tenantID, modelName, "%"+capability+"%")
+	if connectionID > 0 {
+		q = q.Where("connection_id = ?", connectionID)
+	}
+	var row model.ModelEndpoint
+	if err := q.Order("is_default desc, id desc").First(&row).Error; err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
 func (r *Repo) ResolveModel(tenantID, connectionID, modelRowID uint64, capability string) (*model.ModelEndpoint, error) {
 	q := r.db.Where("tenant_id = ? AND enabled = 1", tenantID)
 	if modelRowID > 0 {

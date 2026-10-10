@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -51,23 +52,40 @@ func (s *Service) Image(ctx context.Context, in dto.ImageRequest) (*dto.ImageRes
 	if in.TenantID == 0 || strings.TrimSpace(in.Prompt) == "" {
 		return nil, ErrBadRequest
 	}
-	started := time.Now()
-	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, in.ModelID, "image")
-	if err != nil {
-		return nil, err
+	modelRowID := in.ModelID
+	if name := strings.TrimSpace(in.Model); name != "" {
+		named, err := s.repo.ResolveModelByName(in.TenantID, in.ConnectionID, name, "image")
+		if err != nil {
+			return nil, mapNotFound(err)
+		}
+		modelRowID = named.ID
 	}
-	image, filename, err := decodeImage(in)
+	started := time.Now()
+	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, modelRowID, "image")
 	if err != nil {
 		return nil, err
 	}
 	var result *openai.ImageResult
 	var callErr error
 	mode := "generate"
-	if len(image) > 0 {
+	if conn.ProviderCode == "dashscope" && hasImageSource(in) {
+		ref, refErr := dashscopeImageRef(in)
+		if refErr != nil {
+			return nil, refErr
+		}
 		mode = "edit"
-		result, callErr = s.llm.EditImage(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, in.Size, filename, image)
+		result, callErr = s.llm.EditImageGenerations(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, in.Size, ref)
 	} else {
-		result, callErr = s.llm.GenerateImage(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, in.Size)
+		image, filename, err := decodeImage(in)
+		if err != nil {
+			return nil, err
+		}
+		if len(image) > 0 {
+			mode = "edit"
+			result, callErr = s.llm.EditImage(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, in.Size, filename, image)
+		} else {
+			result, callErr = s.llm.GenerateImage(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, in.Size)
+		}
 	}
 	s.record(in.TenantID, conn, endpoint, in.CallerApp, "image", started, openai.Usage{}, callErr)
 	if callErr != nil {
@@ -123,6 +141,27 @@ func (s *Service) record(tenantID uint64, conn *model.Connection, endpoint *mode
 		PromptTokens: usage.PromptTokens, CompletionTokens: usage.CompletionTokens, TotalTokens: usage.TotalTokens,
 		Status: status, ErrorMessage: msg, LatencyMS: int(time.Since(started).Milliseconds()),
 	})
+}
+
+func hasImageSource(in dto.ImageRequest) bool {
+	return strings.TrimSpace(in.ImageURL) != "" || strings.TrimSpace(in.ImageBase64) != ""
+}
+
+func dashscopeImageRef(in dto.ImageRequest) (string, error) {
+	if u := strings.TrimSpace(in.ImageURL); u != "" {
+		if strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "data:") {
+			return u, nil
+		}
+		return "", errors.New("图片地址无效")
+	}
+	raw := strings.TrimSpace(in.ImageBase64)
+	if raw == "" {
+		return "", errors.New("请提供图片")
+	}
+	if strings.HasPrefix(raw, "data:") {
+		return raw, nil
+	}
+	return "data:image/png;base64," + raw, nil
 }
 
 func resultUsage(result *openai.ChatResult) openai.Usage {
