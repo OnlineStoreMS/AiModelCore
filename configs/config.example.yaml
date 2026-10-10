@@ -1,0 +1,25 @@
+server:
+  port: 8109
+  mode: debug
+
+database:
+  driver: sqlite
+  sqlite_path: data/aimodelcore.db
+
+auth:
+  enabled: true
+  jwt_secret: change-me-same-as-usercore
+  # 加密保存各厂商 API Key，轮换 JWT 时不要改这个值
+  secret_key: change-me-aimodel-secret
+  # 其他 OSMS 应用调用 /api/v1/internal/* 时携带
+  internal_token: change-me-internal-token
+
+cors:
+  allow_origins:
+    - http://localhost:5194
+    - http://127.0.0.1:5194
+    - http://localhost:5174
+    - http://127.0.0.1:5174
+
+apps:
+  public_base_url: http://localhost:5194
