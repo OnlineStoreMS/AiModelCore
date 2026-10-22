@@ -53,6 +53,11 @@ type ChatRequest struct {
 	Messages    []ChatMessage `json:"messages"`
 	Temperature *float64      `json:"temperature,omitempty"`
 	MaxTokens   int           `json:"max_tokens,omitempty"`
+	Thinking    *ThinkingMode `json:"thinking,omitempty"`
+}
+
+type ThinkingMode struct {
+	Type string `json:"type"`
 }
 
 type Usage struct {

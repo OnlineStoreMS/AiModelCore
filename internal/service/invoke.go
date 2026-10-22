@@ -23,13 +23,24 @@ func (s *Service) Chat(ctx context.Context, in dto.ChatRequest) (*dto.ChatRespon
 	if capName != "chat" && capName != "vision" {
 		return nil, ErrBadRequest
 	}
+	modelRowID := in.ModelID
+	if name := strings.TrimSpace(in.Model); name != "" {
+		named, err := s.repo.ResolveModelByName(in.TenantID, in.ConnectionID, name, capName)
+		if err != nil {
+			return nil, mapNotFound(err)
+		}
+		modelRowID = named.ID
+	}
 	ctx, traffic := openai.WithTraffic(ctx)
 	started := time.Now()
-	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, in.ModelID, capName)
+	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, modelRowID, capName)
 	if err != nil {
 		return nil, err
 	}
 	req := openai.ChatRequest{Model: endpoint.ModelID, MaxTokens: in.MaxTokens, Temperature: in.Temperature}
+	if in.Thinking != nil && !*in.Thinking && conn.ProviderCode == "deepseek" {
+		req.Thinking = &openai.ThinkingMode{Type: "disabled"}
+	}
 	for _, m := range in.Messages {
 		role := strings.TrimSpace(m.Role)
 		if role == "" {
