@@ -91,7 +91,7 @@ func Catalog() []Item {
 				{ModelID: "grok-voice-think-fast-2.0", DisplayName: "Grok Voice Think Fast 2.0", Capabilities: []string{"voice"}},
 				{ModelID: "grok-voice-transcribe-2.0", DisplayName: "Grok Voice Transcribe 2.0", Capabilities: []string{"voice"}},
 			},
-			Notes: "模型 ID 以 xAI 文档为准。文生图走 /images/generations。视频和语音已登记，内部调用尚未接通。",
+			Notes: "模型 ID 以 xAI 文档为准。文生图走 /images/generations。访问 api.x.ai 时在接入里填写 HTTP 代理。视频和语音已登记，内部调用尚未接通。",
 		},
 		{
 			Code: "moonshot", Name: "Kimi", Vendor: "月之暗面",
@@ -163,7 +163,7 @@ func Catalog() []Item {
 			DefaultBaseURL: "", Protocol: "openai",
 			Capabilities: []string{"chat", "vision", "image", "embedding"},
 			Models:       nil,
-			Notes:        "填写 OpenAI 兼容的 Base URL，例如 http://10.0.0.8:8000/v1。",
+			Notes:        "内网或本机的 OpenAI 兼容服务，例如 vLLM、Ollama、LM Studio。地址如 http://192.168.3.41:8000/v1，密钥可留空。客服识图把该模型能力勾成「识图」并设为默认。",
 		},
 	}
 }

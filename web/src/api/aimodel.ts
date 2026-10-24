@@ -23,6 +23,7 @@ export interface ConnectionItem {
   providerCode: string
   providerName: string
   baseUrl: string
+  httpProxy: string
   apiKeyHint: string
   hasApiKey: boolean
   enabled: number
@@ -33,6 +34,7 @@ export interface ConnectionInput {
   name: string
   providerCode: string
   baseUrl: string
+  httpProxy: string
   apiKey?: string
   enabled: number
   remark: string
@@ -46,6 +48,7 @@ export interface ModelItem {
   modelId: string
   displayName: string
   capabilities: string[]
+  httpProxy: string
   isDefault: number
   enabled: number
   remark: string
@@ -56,6 +59,7 @@ export interface ModelInput {
   modelId: string
   displayName: string
   capabilities: string[]
+  httpProxy: string
   isDefault: number
   enabled: number
   remark: string

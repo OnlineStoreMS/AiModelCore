@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"strings"
 	"time"
 
 	"aimodelcore/internal/model"
@@ -107,7 +108,7 @@ func (r *Repo) ResolveModelByName(tenantID, connectionID uint64, modelName, capa
 	return &row, nil
 }
 
-func (r *Repo) ResolveModel(tenantID, connectionID, modelRowID uint64, capability string) (*model.ModelEndpoint, error) {
+func (r *Repo) ResolveModel(tenantID, connectionID, modelRowID uint64, capability, providerCode string) (*model.ModelEndpoint, error) {
 	q := r.db.Where("tenant_id = ? AND enabled = 1", tenantID)
 	if modelRowID > 0 {
 		q = q.Where("id = ?", modelRowID)
@@ -115,6 +116,18 @@ func (r *Repo) ResolveModel(tenantID, connectionID, modelRowID uint64, capabilit
 		q = q.Where("capabilities LIKE ?", "%"+capability+"%")
 		if connectionID > 0 {
 			q = q.Where("connection_id = ?", connectionID)
+		} else if code := strings.TrimSpace(providerCode); code != "" {
+			var ids []uint64
+			err := r.db.Model(&model.Connection{}).
+				Where("tenant_id = ? AND provider_code = ? AND enabled = 1", tenantID, code).
+				Pluck("id", &ids).Error
+			if err != nil {
+				return nil, err
+			}
+			if len(ids) == 0 {
+				return nil, gorm.ErrRecordNotFound
+			}
+			q = q.Where("connection_id IN ?", ids)
 		}
 	}
 	var row model.ModelEndpoint

@@ -94,6 +94,7 @@ func (s *Service) TestConnection(ctx context.Context, tenantID, id uint64) (*dto
 	if strings.TrimSpace(apiKey) == "" {
 		return &dto.TestResult{OK: false, Message: "尚未填写密钥"}, nil
 	}
+	ctx = proxyContext(ctx, row, nil)
 	models, err := s.llm.ListModels(ctx, row.BaseURL, apiKey, nil)
 	if err != nil {
 		msg := err.Error()
@@ -251,7 +252,11 @@ func (s *Service) buildConnection(tenantID uint64, existing *model.Connection, i
 	if base == "" {
 		return nil, errors.New("请填写接口地址")
 	}
-	row := &model.Connection{TenantID: tenantID, Name: name, ProviderCode: code, BaseURL: base, Remark: strings.TrimSpace(in.Remark), Enabled: 1}
+	proxy, err := openai.NormalizeProxy(in.HTTPProxy)
+	if err != nil {
+		return nil, err
+	}
+	row := &model.Connection{TenantID: tenantID, Name: name, ProviderCode: code, BaseURL: base, HTTPProxy: proxy, Remark: strings.TrimSpace(in.Remark), Enabled: 1}
 	if existing != nil {
 		row.ID = existing.ID
 		row.CreatedAt = existing.CreatedAt
@@ -270,7 +275,7 @@ func (s *Service) buildConnection(tenantID uint64, existing *model.Connection, i
 		}
 		row.APIKeyEnc = enc
 		row.APIKeyHint = secret.Hint(key)
-	} else if creating {
+	} else if creating && code != "private" {
 		return nil, errors.New("请填写密钥")
 	}
 	return row, nil
@@ -292,9 +297,13 @@ func (s *Service) buildModel(tenantID uint64, existing *model.ModelEndpoint, in 
 	if display == "" {
 		display = modelID
 	}
+	proxy, err := openai.NormalizeProxy(in.HTTPProxy)
+	if err != nil {
+		return nil, err
+	}
 	row := &model.ModelEndpoint{
 		TenantID: tenantID, ConnectionID: in.ConnectionID, ModelID: modelID,
-		DisplayName: display, Capabilities: strings.Join(caps, ","), Enabled: 1,
+		DisplayName: display, Capabilities: strings.Join(caps, ","), HTTPProxy: proxy, Enabled: 1,
 		Remark: strings.TrimSpace(in.Remark),
 	}
 	if existing != nil {
@@ -322,7 +331,7 @@ func (s *Service) viewConn(row model.Connection) dto.ConnectionView {
 	}
 	return dto.ConnectionView{
 		ID: row.ID, Name: row.Name, ProviderCode: row.ProviderCode, ProviderName: name,
-		BaseURL: row.BaseURL, APIKeyHint: row.APIKeyHint, HasAPIKey: row.APIKeyEnc != "",
+		BaseURL: row.BaseURL, HTTPProxy: row.HTTPProxy, APIKeyHint: row.APIKeyHint, HasAPIKey: row.APIKeyEnc != "",
 		Enabled: row.Enabled, Remark: row.Remark,
 	}
 }
@@ -334,7 +343,7 @@ func viewModel(row model.ModelEndpoint, conn model.Connection) dto.ModelView {
 	}
 	return dto.ModelView{
 		ID: row.ID, ConnectionID: row.ConnectionID, ConnectionName: conn.Name, ProviderCode: conn.ProviderCode,
-		ModelID: row.ModelID, DisplayName: row.DisplayName, Capabilities: caps,
+		ModelID: row.ModelID, DisplayName: row.DisplayName, Capabilities: caps, HTTPProxy: row.HTTPProxy,
 		IsDefault: row.IsDefault, Enabled: row.Enabled, Remark: row.Remark,
 	}
 }
@@ -355,6 +364,17 @@ func normalizeCaps(in []string) []string {
 		out = append(out, c)
 	}
 	return out
+}
+
+func proxyContext(ctx context.Context, conn *model.Connection, endpoint *model.ModelEndpoint) context.Context {
+	proxy := ""
+	if endpoint != nil {
+		proxy = strings.TrimSpace(endpoint.HTTPProxy)
+	}
+	if proxy == "" && conn != nil {
+		proxy = strings.TrimSpace(conn.HTTPProxy)
+	}
+	return openai.WithProxy(ctx, proxy)
 }
 
 func mapNotFound(err error) error {

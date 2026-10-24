@@ -28,6 +28,7 @@ const form = reactive({
   modelId: '',
   displayName: '',
   capabilities: ['chat'] as string[],
+  httpProxy: '',
   isDefault: 0,
   enabled: 1,
   remark: '',
@@ -53,6 +54,7 @@ function openCreate() {
   form.modelId = ''
   form.displayName = ''
   form.capabilities = ['chat']
+  form.httpProxy = ''
   form.isDefault = 0
   form.enabled = 1
   form.remark = ''
@@ -70,6 +72,7 @@ function openEdit(row: ModelItem) {
   form.modelId = row.modelId
   form.displayName = row.displayName
   form.capabilities = [...row.capabilities]
+  form.httpProxy = row.httpProxy || ''
   form.isDefault = row.isDefault
   form.enabled = row.enabled
   form.remark = row.remark
@@ -123,6 +126,7 @@ onMounted(load)
       <el-table-column prop="displayName" label="名称" min-width="160" />
       <el-table-column prop="modelId" label="模型 ID" min-width="180" />
       <el-table-column prop="connectionName" label="接入" width="160" />
+      <el-table-column prop="httpProxy" label="HTTP 代理" min-width="160" show-overflow-tooltip />
       <el-table-column label="能力" min-width="200">
         <template #default="{ row }">
           <el-tag v-for="cap in row.capabilities" :key="cap" class="cap" size="small">{{ capabilityLabel(cap) }}</el-tag>
@@ -147,7 +151,7 @@ onMounted(load)
   </el-card>
 
   <el-dialog v-model="dialog" :title="editingId ? '编辑模型' : '添加模型'" width="560px">
-    <el-form label-width="88px">
+    <el-form label-width="108px">
       <el-form-item label="接入">
         <el-select v-model="form.connectionId" style="width: 100%">
           <el-option v-for="item in connections" :key="item.id" :label="item.name" :value="item.id" />
@@ -158,6 +162,9 @@ onMounted(load)
       </el-form-item>
       <el-form-item label="显示名">
         <el-input v-model="form.displayName" />
+      </el-form-item>
+      <el-form-item label="HTTP 代理">
+        <el-input v-model="form.httpProxy" placeholder="留空则使用厂商接入上的代理" />
       </el-form-item>
       <el-form-item label="能力">
         <el-checkbox-group v-model="form.capabilities">

@@ -33,9 +33,15 @@ func (s *Service) Chat(ctx context.Context, in dto.ChatRequest) (*dto.ChatRespon
 	}
 	ctx, traffic := openai.WithTraffic(ctx)
 	started := time.Now()
-	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, modelRowID, capName)
+	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, modelRowID, capName, in.ProviderCode)
 	if err != nil {
+		if strings.TrimSpace(in.ProviderCode) == "private" && errors.Is(err, ErrNoModel) {
+			return nil, errors.New("没有可用的私有识图模型，请在 AI 大模型管理中心接入本地模型，能力勾选识图并设为默认")
+		}
 		return nil, err
+	}
+	if code := strings.TrimSpace(in.ProviderCode); code != "" && conn.ProviderCode != code {
+		return nil, errors.New("没有可用的私有识图模型，请在 AI 大模型管理中心接入本地模型，能力勾选识图并设为默认")
 	}
 	req := openai.ChatRequest{Model: endpoint.ModelID, MaxTokens: in.MaxTokens, Temperature: in.Temperature}
 	if in.Thinking != nil && !*in.Thinking && conn.ProviderCode == "deepseek" {
@@ -48,6 +54,7 @@ func (s *Service) Chat(ctx context.Context, in dto.ChatRequest) (*dto.ChatRespon
 		}
 		req.Messages = append(req.Messages, openai.ChatMessage{Role: role, Content: m.Content})
 	}
+	ctx = proxyContext(ctx, conn, endpoint)
 	result, callErr := s.llm.Chat(ctx, conn.BaseURL, apiKey, nil, req)
 	s.record(in.TenantID, conn, endpoint, in.CallerApp, capName, started, resultUsage(result), traffic, callErr)
 	if callErr != nil {
@@ -74,10 +81,11 @@ func (s *Service) Image(ctx context.Context, in dto.ImageRequest) (*dto.ImageRes
 	}
 	ctx, traffic := openai.WithTraffic(ctx)
 	started := time.Now()
-	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, modelRowID, "image")
+	conn, endpoint, apiKey, err := s.resolve(in.TenantID, in.ConnectionID, modelRowID, "image", "")
 	if err != nil {
 		return nil, err
 	}
+	ctx = proxyContext(ctx, conn, endpoint)
 	var result *openai.ImageResult
 	var callErr error
 	mode := "generate"
@@ -110,8 +118,8 @@ func (s *Service) Image(ctx context.Context, in dto.ImageRequest) (*dto.ImageRes
 	}, nil
 }
 
-func (s *Service) resolve(tenantID, connectionID, modelRowID uint64, capability string) (*model.Connection, *model.ModelEndpoint, string, error) {
-	endpoint, err := s.repo.ResolveModel(tenantID, connectionID, modelRowID, capability)
+func (s *Service) resolve(tenantID, connectionID, modelRowID uint64, capability, providerCode string) (*model.Connection, *model.ModelEndpoint, string, error) {
+	endpoint, err := s.repo.ResolveModel(tenantID, connectionID, modelRowID, capability, providerCode)
 	if err != nil {
 		return nil, nil, "", mapNotFound(err)
 	}
@@ -129,7 +137,7 @@ func (s *Service) resolve(tenantID, connectionID, modelRowID uint64, capability 
 	if err != nil {
 		return nil, nil, "", err
 	}
-	if strings.TrimSpace(apiKey) == "" {
+	if strings.TrimSpace(apiKey) == "" && conn.ProviderCode != "private" {
 		return nil, nil, "", ErrNoKey
 	}
 	return conn, endpoint, apiKey, nil

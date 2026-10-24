@@ -8,6 +8,19 @@ import (
 	"testing"
 )
 
+func TestNormalizeProxy(t *testing.T) {
+	if got, err := NormalizeProxy("  "); err != nil || got != "" {
+		t.Fatalf("empty: %q %v", got, err)
+	}
+	if _, err := NormalizeProxy("socks5://127.0.0.1:1080"); err == nil {
+		t.Fatal("socks should be rejected")
+	}
+	got, err := NormalizeProxy("http://127.0.0.1:7890")
+	if err != nil || got != "http://127.0.0.1:7890" {
+		t.Fatalf("http: %q %v", got, err)
+	}
+}
+
 func TestEndpoint(t *testing.T) {
 	cases := map[string]string{
 		"https://api.deepseek.com/v1":                             Endpoint("https://api.deepseek.com/v1", "chat/completions"),

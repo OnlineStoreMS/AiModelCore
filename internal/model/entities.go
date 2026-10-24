@@ -8,6 +8,7 @@ type Connection struct {
 	Name         string    `gorm:"size:128;not null" json:"name"`
 	ProviderCode string    `gorm:"size:64;not null;index" json:"providerCode"`
 	BaseURL      string    `gorm:"size:512;not null" json:"baseUrl"`
+	HTTPProxy    string    `gorm:"size:512" json:"httpProxy"`
 	APIKeyEnc    string    `gorm:"size:2048" json:"-"`
 	APIKeyHint   string    `gorm:"size:16" json:"apiKeyHint"`
 	Enabled      int       `gorm:"not null;default:1" json:"enabled"`
@@ -25,6 +26,7 @@ type ModelEndpoint struct {
 	ModelID      string    `gorm:"size:128;not null" json:"modelId"`
 	DisplayName  string    `gorm:"size:128" json:"displayName"`
 	Capabilities string    `gorm:"size:128;not null" json:"capabilities"`
+	HTTPProxy    string    `gorm:"size:512" json:"httpProxy"`
 	IsDefault    int       `gorm:"not null;default:0" json:"isDefault"`
 	Enabled      int       `gorm:"not null;default:1" json:"enabled"`
 	Remark       string    `gorm:"size:512" json:"remark"`

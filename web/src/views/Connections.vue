@@ -23,6 +23,7 @@ const form = reactive({
   name: '',
   providerCode: 'deepseek',
   baseUrl: '',
+  httpProxy: '',
   apiKey: '',
   enabled: 1,
   remark: '',
@@ -46,6 +47,7 @@ function openCreate() {
   form.name = ''
   form.providerCode = 'deepseek'
   form.baseUrl = currentProvider()?.defaultBaseUrl || ''
+  form.httpProxy = ''
   form.apiKey = ''
   form.enabled = 1
   form.remark = ''
@@ -57,6 +59,7 @@ function openEdit(row: ConnectionItem) {
   form.name = row.name
   form.providerCode = row.providerCode
   form.baseUrl = row.baseUrl
+  form.httpProxy = row.httpProxy || ''
   form.apiKey = ''
   form.enabled = row.enabled
   form.remark = row.remark
@@ -116,7 +119,8 @@ onMounted(load)
     <el-table v-loading="loading" :data="rows">
       <el-table-column prop="name" label="名称" min-width="140" />
       <el-table-column prop="providerName" label="厂商" width="140" />
-      <el-table-column prop="baseUrl" label="地址" min-width="260" show-overflow-tooltip />
+      <el-table-column prop="baseUrl" label="地址" min-width="220" show-overflow-tooltip />
+      <el-table-column prop="httpProxy" label="HTTP 代理" min-width="180" show-overflow-tooltip />
       <el-table-column label="密钥" width="140">
         <template #default="{ row }">{{ row.hasApiKey ? row.apiKeyHint : '未配置' }}</template>
       </el-table-column>
@@ -137,7 +141,7 @@ onMounted(load)
   </el-card>
 
   <el-dialog v-model="dialog" :title="editingId ? '编辑接入' : '新建接入'" width="560px">
-    <el-form label-width="88px">
+    <el-form label-width="108px">
       <el-form-item label="名称">
         <el-input v-model="form.name" placeholder="例如 百炼-商品图" />
       </el-form-item>
@@ -149,8 +153,11 @@ onMounted(load)
       <el-form-item label="地址">
         <el-input v-model="form.baseUrl" placeholder="OpenAI 兼容 Base URL" />
       </el-form-item>
+      <el-form-item label="HTTP 代理">
+        <el-input v-model="form.httpProxy" placeholder="http://host.docker.internal:7890，留空则直连" />
+      </el-form-item>
       <el-form-item label="密钥">
-        <el-input v-model="form.apiKey" type="password" show-password :placeholder="editingId ? '留空则不修改' : 'API Key'" />
+        <el-input v-model="form.apiKey" type="password" show-password :placeholder="form.providerCode === 'private' ? '本地模型可留空' : (editingId ? '留空则不修改' : 'API Key')" />
       </el-form-item>
       <el-form-item label="启用">
         <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />

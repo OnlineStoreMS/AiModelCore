@@ -47,6 +47,7 @@ func (s *Service) Playground(ctx context.Context, tenantID, modelRowID uint64, i
 	}
 
 	ctx, traffic := openai.WithTraffic(ctx)
+	ctx = proxyContext(ctx, conn, endpoint)
 	started := time.Now()
 	var result *dto.PlaygroundResult
 	var callErr error

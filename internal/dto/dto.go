@@ -6,6 +6,7 @@ type ConnectionInput struct {
 	Name         string `json:"name"`
 	ProviderCode string `json:"providerCode"`
 	BaseURL      string `json:"baseUrl"`
+	HTTPProxy    string `json:"httpProxy"`
 	APIKey       string `json:"apiKey"`
 	Enabled      *int   `json:"enabled"`
 	Remark       string `json:"remark"`
@@ -17,6 +18,7 @@ type ConnectionView struct {
 	ProviderCode string `json:"providerCode"`
 	ProviderName string `json:"providerName"`
 	BaseURL      string `json:"baseUrl"`
+	HTTPProxy    string `json:"httpProxy"`
 	APIKeyHint   string `json:"apiKeyHint"`
 	HasAPIKey    bool   `json:"hasApiKey"`
 	Enabled      int    `json:"enabled"`
@@ -28,6 +30,7 @@ type ModelInput struct {
 	ModelID      string   `json:"modelId"`
 	DisplayName  string   `json:"displayName"`
 	Capabilities []string `json:"capabilities"`
+	HTTPProxy    string   `json:"httpProxy"`
 	IsDefault    *int     `json:"isDefault"`
 	Enabled      *int     `json:"enabled"`
 	Remark       string   `json:"remark"`
@@ -41,6 +44,7 @@ type ModelView struct {
 	ModelID        string   `json:"modelId"`
 	DisplayName    string   `json:"displayName"`
 	Capabilities   []string `json:"capabilities"`
+	HTTPProxy      string   `json:"httpProxy"`
 	IsDefault      int      `json:"isDefault"`
 	Enabled        int      `json:"enabled"`
 	Remark         string   `json:"remark"`
@@ -78,6 +82,8 @@ type ChatRequest struct {
 	MaxTokens    int           `json:"maxTokens"`
 	Model        string        `json:"model"`
 	Thinking     *bool         `json:"thinking"`
+	// ProviderCode 非空时只使用该厂商下的模型。客服识图传 private，避免落到公网接入。
+	ProviderCode string `json:"providerCode"`
 }
 
 type ChatMessage struct {

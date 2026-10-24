@@ -8,8 +8,10 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,6 +24,62 @@ func New() *Client {
 }
 
 type trafficKey struct{}
+type proxyKey struct{}
+
+var proxyClients sync.Map
+
+// NormalizeProxy 接受空串，或 http/https 代理地址。
+func NormalizeProxy(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return "", fmt.Errorf("HTTP 代理需为 http:// 或 https:// 地址")
+	}
+	return raw, nil
+}
+
+func WithProxy(ctx context.Context, raw string) context.Context {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, proxyKey{}, raw)
+}
+
+func (c *Client) roundTrip(ctx context.Context, req *http.Request) (*http.Response, error) {
+	client, err := c.clientFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return client.Do(req)
+}
+
+func (c *Client) clientFor(ctx context.Context) (*http.Client, error) {
+	raw, _ := ctx.Value(proxyKey{}).(string)
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return c.HTTP, nil
+	}
+	if cached, ok := proxyClients.Load(raw); ok {
+		return cached.(*http.Client), nil
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return nil, fmt.Errorf("HTTP 代理需为 http:// 或 https:// 地址")
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = http.ProxyURL(parsed)
+	timeout := 170 * time.Second
+	if c.HTTP != nil && c.HTTP.Timeout > 0 {
+		timeout = c.HTTP.Timeout
+	}
+	client := &http.Client{Timeout: timeout, Transport: transport}
+	actual, _ := proxyClients.LoadOrStore(raw, client)
+	return actual.(*http.Client), nil
+}
 
 // Traffic 累计一次业务调用里发给厂商的请求体和读到的响应体字节数。
 type Traffic struct {
@@ -200,7 +258,7 @@ func (c *Client) EditImage(ctx context.Context, base, apiKey string, headers map
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	applyAuth(req, apiKey, headers)
 	sent := int64(buf.Len())
-	resp, err := c.HTTP.Do(req)
+	resp, err := c.roundTrip(ctx, req)
 	if err != nil {
 		noteTraffic(ctx, sent, 0)
 		return nil, err
@@ -260,7 +318,7 @@ func (c *Client) Call(ctx context.Context, method, url, apiKey string, payload a
 		req.Header.Set("Content-Type", "application/json")
 	}
 	applyAuth(req, apiKey, nil)
-	resp, err := c.HTTP.Do(req)
+	resp, err := c.roundTrip(ctx, req)
 	if err != nil {
 		noteTraffic(ctx, sent, 0)
 		return 0, nil, err
@@ -299,7 +357,7 @@ func (c *Client) PostFile(ctx context.Context, url, apiKey, field, filename stri
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	applyAuth(req, apiKey, nil)
-	resp, err := c.HTTP.Do(req)
+	resp, err := c.roundTrip(ctx, req)
 	if err != nil {
 		noteTraffic(ctx, sent, 0)
 		return 0, nil, err
@@ -332,7 +390,7 @@ func (c *Client) do(ctx context.Context, method, url, apiKey string, headers map
 		req.Header.Set("Content-Type", "application/json")
 	}
 	applyAuth(req, apiKey, headers)
-	resp, err := c.HTTP.Do(req)
+	resp, err := c.roundTrip(ctx, req)
 	if err != nil {
 		noteTraffic(ctx, sent, 0)
 		return 0, nil, err
@@ -347,7 +405,9 @@ func (c *Client) do(ctx context.Context, method, url, apiKey string, headers map
 }
 
 func applyAuth(req *http.Request, apiKey string, headers map[string]string) {
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	if strings.TrimSpace(apiKey) != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
 	req.Header.Set("User-Agent", "OSMS-AiModelCore/0.1")
 	for k, v := range headers {
 		if strings.TrimSpace(k) != "" {
