@@ -89,14 +89,22 @@ func (s *Service) Image(ctx context.Context, in dto.ImageRequest) (*dto.ImageRes
 	var result *openai.ImageResult
 	var callErr error
 	mode := "generate"
-	if conn.ProviderCode == "dashscope" && hasImageSource(in) {
+	switch {
+	case conn.ProviderCode == "dashscope" && hasImageSource(in):
 		ref, refErr := dashscopeImageRef(in)
 		if refErr != nil {
 			return nil, refErr
 		}
 		mode = "edit"
 		result, callErr = s.llm.EditImageGenerations(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, in.Size, ref)
-	} else {
+	case conn.ProviderCode == "xai" && hasImageSource(in):
+		ref, refErr := dashscopeImageRef(in)
+		if refErr != nil {
+			return nil, refErr
+		}
+		mode = "edit"
+		result, callErr = s.llm.EditImageJSON(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, in.Size, ref)
+	default:
 		image, filename, err := decodeImage(in)
 		if err != nil {
 			return nil, err

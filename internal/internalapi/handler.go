@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"aimodelcore/internal/config"
@@ -24,8 +25,38 @@ func NewHandler(svc *service.Service, cfg *config.AuthConfig) *Handler {
 }
 
 func Register(r *gin.RouterGroup, h *Handler) {
+	r.GET("/models", h.ListModels)
 	r.POST("/chat", h.Chat)
 	r.POST("/images", h.Images)
+}
+
+func (h *Handler) ListModels(c *gin.Context) {
+	if !h.authorized(c) {
+		return
+	}
+	tenantID, err := strconv.ParseUint(strings.TrimSpace(c.Query("tenantId")), 10, 64)
+	if err != nil || tenantID == 0 {
+		response.Fail(c, http.StatusBadRequest, "参数不正确")
+		return
+	}
+	var connectionID uint64
+	if raw := strings.TrimSpace(c.Query("connectionId")); raw != "" {
+		connectionID, err = strconv.ParseUint(raw, 10, 64)
+		if err != nil {
+			response.Fail(c, http.StatusBadRequest, "参数不正确")
+			return
+		}
+	}
+	capability := strings.TrimSpace(c.Query("capability"))
+	if capability == "" {
+		capability = "image"
+	}
+	list, err := h.svc.ListEnabledModels(tenantID, connectionID, capability)
+	if err != nil {
+		writeErr(c, err)
+		return
+	}
+	response.OK(c, list)
 }
 
 func (h *Handler) Chat(c *gin.Context) {

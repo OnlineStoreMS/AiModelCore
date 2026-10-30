@@ -162,6 +162,44 @@ func (s *Service) ListModels(tenantID, connectionID uint64) ([]dto.ModelView, er
 	return out, nil
 }
 
+func (s *Service) ListEnabledModels(tenantID, connectionID uint64, capability string) ([]dto.ModelView, error) {
+	capability = strings.TrimSpace(capability)
+	if capability == "" {
+		capability = "chat"
+	}
+	rows, err := s.repo.ListEnabledModelsByCapability(tenantID, connectionID, capability)
+	if err != nil {
+		return nil, err
+	}
+	names := map[uint64]model.Connection{}
+	conns, err := s.repo.ListConnections(tenantID)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range conns {
+		names[c.ID] = c
+	}
+	out := make([]dto.ModelView, 0, len(rows))
+	for _, row := range rows {
+		conn := names[row.ConnectionID]
+		if conn.ID == 0 || conn.Enabled != 1 {
+			continue
+		}
+		view := viewModel(row, conn)
+		ok := false
+		for _, cap := range view.Capabilities {
+			if cap == capability {
+				ok = true
+				break
+			}
+		}
+		if ok {
+			out = append(out, view)
+		}
+	}
+	return out, nil
+}
+
 func (s *Service) CreateModel(tenantID uint64, in dto.ModelInput) (*dto.ModelView, error) {
 	row, err := s.buildModel(tenantID, nil, in, true)
 	if err != nil {

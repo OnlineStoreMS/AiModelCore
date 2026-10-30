@@ -60,6 +60,19 @@ func (r *Repo) ListModels(tenantID uint64, connectionID uint64) ([]model.ModelEn
 	return list, err
 }
 
+func (r *Repo) ListEnabledModelsByCapability(tenantID, connectionID uint64, capability string) ([]model.ModelEndpoint, error) {
+	q := r.db.Where("tenant_id = ? AND enabled = 1", tenantID)
+	if connectionID > 0 {
+		q = q.Where("connection_id = ?", connectionID)
+	}
+	if capability = strings.TrimSpace(capability); capability != "" {
+		q = q.Where("capabilities LIKE ?", "%"+capability+"%")
+	}
+	var list []model.ModelEndpoint
+	err := q.Order("is_default desc, id desc").Find(&list).Error
+	return list, err
+}
+
 func (r *Repo) GetModel(tenantID, id uint64) (*model.ModelEndpoint, error) {
 	var row model.ModelEndpoint
 	err := r.db.Where("tenant_id = ? AND id = ?", tenantID, id).First(&row).Error
