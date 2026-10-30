@@ -233,8 +233,8 @@ func (c *Client) EditImageGenerations(ctx context.Context, base, apiKey string, 
 	return c.imageJSON(ctx, Endpoint(base, "images/generations"), apiKey, headers, payload)
 }
 
-// EditImageJSON 用 JSON 调 /images/edits（xAI Grok Imagine 等要求 application/json，不接受 multipart）。
-func (c *Client) EditImageJSON(ctx context.Context, base, apiKey string, headers map[string]string, model, prompt, size, imageRef string) (*ImageResult, error) {
+// EditImageJSON 用 JSON 调 /images/edits（xAI Grok Imagine 等要求 application/json，不接受 multipart，也不支持 size）。
+func (c *Client) EditImageJSON(ctx context.Context, base, apiKey string, headers map[string]string, model, prompt, imageRef string) (*ImageResult, error) {
 	payload := map[string]any{
 		"model":  model,
 		"prompt": prompt,
@@ -242,9 +242,6 @@ func (c *Client) EditImageJSON(ctx context.Context, base, apiKey string, headers
 			"url":  imageRef,
 			"type": "image_url",
 		},
-	}
-	if size != "" {
-		payload["size"] = size
 	}
 	return c.imageJSON(ctx, Endpoint(base, "images/edits"), apiKey, headers, payload)
 }

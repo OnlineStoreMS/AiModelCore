@@ -103,7 +103,8 @@ func (s *Service) Image(ctx context.Context, in dto.ImageRequest) (*dto.ImageRes
 			return nil, refErr
 		}
 		mode = "edit"
-		result, callErr = s.llm.EditImageJSON(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, in.Size, ref)
+		// Grok 不支持 size，输出比例默认跟随原图。
+		result, callErr = s.llm.EditImageJSON(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, ref)
 	default:
 		image, filename, err := decodeImage(in)
 		if err != nil {
