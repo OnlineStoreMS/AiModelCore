@@ -103,8 +103,10 @@ func (s *Service) Image(ctx context.Context, in dto.ImageRequest) (*dto.ImageRes
 			return nil, refErr
 		}
 		mode = "edit"
-		// Grok 不支持 size，输出比例默认跟随原图。
+		// Grok 不支持 size；强制 b64，避免 imgen.x.ai 临时链被下游保存失败。
 		result, callErr = s.llm.EditImageJSON(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt, ref)
+	case conn.ProviderCode == "xai":
+		result, callErr = s.llm.GenerateImageXAI(ctx, conn.BaseURL, apiKey, nil, endpoint.ModelID, in.Prompt)
 	default:
 		image, filename, err := decodeImage(in)
 		if err != nil {

@@ -217,6 +217,16 @@ func (c *Client) GenerateImage(ctx context.Context, base, apiKey string, headers
 	return c.imageJSON(ctx, Endpoint(base, "images/generations"), apiKey, headers, payload)
 }
 
+// GenerateImageXAI 调 xAI 文生图：不要 size，强制 b64，避免临时 URL 下游拉不下来。
+func (c *Client) GenerateImageXAI(ctx context.Context, base, apiKey string, headers map[string]string, model, prompt string) (*ImageResult, error) {
+	payload := map[string]any{
+		"model":           model,
+		"prompt":          prompt,
+		"response_format": "b64_json",
+	}
+	return c.imageJSON(ctx, Endpoint(base, "images/generations"), apiKey, headers, payload)
+}
+
 // EditImageGenerations 用 images/generations 的 image 字段做图生图。百炼 qwen-image 走这条，不走 multipart /images/edits。
 func (c *Client) EditImageGenerations(ctx context.Context, base, apiKey string, headers map[string]string, model, prompt, size, imageRef string) (*ImageResult, error) {
 	payload := map[string]any{
@@ -233,7 +243,7 @@ func (c *Client) EditImageGenerations(ctx context.Context, base, apiKey string, 
 	return c.imageJSON(ctx, Endpoint(base, "images/generations"), apiKey, headers, payload)
 }
 
-// EditImageJSON 用 JSON 调 /images/edits（xAI Grok Imagine 等要求 application/json，不接受 multipart，也不支持 size）。
+// EditImageJSON 用 JSON 调 /images/edits（xAI Grok Imagine：application/json，不支持 size；用 b64 避免 imgen.x.ai 临时链下游无法下载）。
 func (c *Client) EditImageJSON(ctx context.Context, base, apiKey string, headers map[string]string, model, prompt, imageRef string) (*ImageResult, error) {
 	payload := map[string]any{
 		"model":  model,
@@ -242,6 +252,7 @@ func (c *Client) EditImageJSON(ctx context.Context, base, apiKey string, headers
 			"url":  imageRef,
 			"type": "image_url",
 		},
+		"response_format": "b64_json",
 	}
 	return c.imageJSON(ctx, Endpoint(base, "images/edits"), apiKey, headers, payload)
 }
